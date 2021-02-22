@@ -1,0 +1,34 @@
+Import('RTT_ROOT')
+Import('rtconfig')
+from building import *
+import os
+
+cwd = GetCurrentDir()
+src = Glob('*.c')
+src+=Glob('*.cpp')
+CPPPATH=[cwd,str(Dir('#'))]
+dirlist=os.listdir(cwd)
+for d in dirlist:
+    path=os.path.join(cwd,d)
+    if os.path.isdir(path):
+        CPPPATH+=[path]
+        src+=Glob(path+"\*.cpp")
+        src+=Glob(path+"\*.c")
+
+group = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')
+
+
+# Import('RTT_ROOT')
+# Import('rtconfig')
+# from building import *
+
+# cwd = GetCurrentDir()
+# src = Glob('*.c')
+
+# CPPPATH = [cwd, str(Dir('#'))]
+
+# group = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH)
+
+# Return('group')
