@@ -66,7 +66,7 @@ static float required_linear_y = 0;
 static float required_angular_z = 0;
 static rt_tick_t previous_command_time = 0;
 static mbs_msgs::Velocities raw_vel_msg;
-static mbs_msgs::Imu raw_imu_msg;
+static mbs_msgs::RawImu raw_imu_msg;
 
 static void velocities_cb(const mbs_msgs::Velocities &v)
 {
@@ -75,9 +75,24 @@ static void velocities_cb(const mbs_msgs::Velocities &v)
 
 static void command_callback(const geometry_msgs::Twist &cmd_msg)
 {
-
-    required_linear_x = cmd_msg.linear.x * 1000;
-    required_linear_y = cmd_msg.linear.y * 1000;
+    //ROS里面将移动小车的方向定义如下：
+    /*
+            x+
+            ^
+            |
+    y+<------
+    */
+    //而项目用的小车的方向定义如下：
+    /*
+            y+
+            ^
+            |
+    x+<------
+    */
+    //因此要做必要改动
+    //控制小车api的速度单位是mm/s和r/s，ROS里面的速度单位是m/s和r/s
+    required_linear_x = cmd_msg.linear.y * 1000;
+    required_linear_y = cmd_msg.linear.x * 1000;
     required_angular_z = cmd_msg.angular.z;
 
     previous_command_time = rt_tick_get();
@@ -111,15 +126,37 @@ static void ros_con_thread_entry(void *parameter)
 
 static void publish_imu()
 {
-    measure_acceleration();
-    raw_imu_msg.raw_linear_acceleration.x=data_acce.data.acce.x;
-    raw_imu_msg.raw_linear_acceleration.y=data_acce.data.acce.y;
-    raw_imu_msg.raw_linear_acceleration.z=data_acce.data.acce.z;
-    measure_gryoscope();
-    raw_imu_msg.raw_angular_velocity.x=data_gyro.data.gyro.x;
-    raw_imu_msg.raw_angular_velocity.y=data_gyro.data.gyro.y;
-    raw_imu_msg.raw_angular_velocity.z=data_gyro.data.gyro.z;
+    raw_imu_msg.header.stamp=nh.now();
+    raw_imu_msg.header.frame_id="imu_link";
+    //加速度沿某个轴的反方向,mpu6050测到为正
+    if(raw_imu_msg.accelerometer)
+    {
+        measure_acceleration();
+        raw_imu_msg.raw_linear_acceleration.x=-data_acce.data.acce.y; //mg
+        raw_imu_msg.raw_linear_acceleration.y=data_acce.data.acce.x;  
+        raw_imu_msg.raw_linear_acceleration.z=-data_acce.data.acce.z;
+    }
+    //板载的mpu6050方向不规范，纠正
+    //头x,左右y,竖直向上为z
+    //"nwe----xyz"
+    //传出去的单位改为r/s
+    if(raw_imu_msg.gyroscope)
+    {
+        measure_gyroscope();
+        raw_imu_msg.raw_angular_velocity.x=data_gyro.data.gyro.y*DEG_TO_RAD; //r/s
+        raw_imu_msg.raw_angular_velocity.y=-data_gyro.data.gyro.x*DEG_TO_RAD;
+        raw_imu_msg.raw_angular_velocity.z=data_gyro.data.gyro.z*DEG_TO_RAD;
+    }
+    if(raw_imu_msg.magnetometer)
+    {
+        
+    }
     raw_imu_pub.publish(&raw_imu_msg);
+}
+
+static void publish_rawimu()
+{
+    measure_acceleration();
 }
 
 static void ros_parse_thread_entry(void *parameter)
@@ -146,14 +183,17 @@ static void ros_parse_thread_entry(void *parameter)
         {
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             /*
-    可能x，y的方向不太正确
-*/
+            x和y互调一下
+            */
+            /*
+            非常奇怪这些个公式，必须要乘以10，速度值才是正确的
+            */
             //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             previous_vel_pub_time = rt_tick_get();
             velocities_t vel = get_velocities();
-            raw_vel_msg.linear_x = vel.linear_x;
-            raw_vel_msg.linear_y = vel.linear_y;
-            raw_vel_msg.angular_z = vel.angular_z;
+            raw_vel_msg.linear_y = vel.linear_x*10;  //m/s
+            raw_vel_msg.linear_x = vel.linear_y*10;  //m/s
+            raw_vel_msg.angular_z = vel.angular_z*10;  //r/s
             raw_vel_pub.publish(&raw_vel_msg);
         }
         if (rt_tick_get() - previous_imu_pub_time > RT_TICK_PER_SECOND / IMU_PUB_RATE)

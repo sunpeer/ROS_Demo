@@ -12,7 +12,7 @@ extern "C"{
 
 void measure_acceleration();
 
-void measure_gryoscope();
+void measure_gyroscope();
 
 #ifdef __cplusplus
 }

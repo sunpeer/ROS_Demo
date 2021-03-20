@@ -40,11 +40,11 @@ void measure_acceleration()
     rt_device_read(acce_mpu_sensor,0,&data_acce,1);
 }
 
-//获取角速度，单位为deg/ms
+//获取角速度，单位为deg/s
 void measure_gyroscope()
 {
     rt_device_read(gyro_mpu_sensor,0,&data_gyro,1);
-    data_gyro.data.acce.x/=10;
-    data_gyro.data.acce.y/=10;
-    data_gyro.data.acce.z/=10;
+    data_gyro.data.gyro.x/=100.0;
+    data_gyro.data.gyro.y/=100.0;
+    data_gyro.data.gyro.z/=100.0;
 }

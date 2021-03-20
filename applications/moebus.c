@@ -53,27 +53,29 @@ void Motor_Init(void)
     }
 }
 
+//单位是m/s ,r/s
 velocities_t get_velocities()
 {
     velocities_t vel;
     vel.linear_y=(motors[0].cur_spd+motors[1].cur_spd+motors[2].cur_spd+motors[3].cur_spd)/4; //rpm
-    vel.linear_y=vel.linear_y/SDRM_PARAM/1000;
+    vel.linear_y=vel.linear_y/SDRM_PARAM/1000; //m/s
     vel.linear_x=(-motors[0].cur_spd+motors[1].cur_spd+motors[2].cur_spd-motors[3].cur_spd)/4; //rpm
-    vel.linear_x=vel.linear_x/SDRM_PARAM/1000;
+    vel.linear_x=vel.linear_x/SDRM_PARAM/1000; //m/s
     vel.angular_z=(-motors[0].cur_spd+motors[1].cur_spd-motors[2].cur_spd+motors[3].cur_spd)/4;
-    vel.angular_z=vel.angular_z/SDRM_PARAM;
+    vel.angular_z=vel.angular_z/SDRM_PARAM; //r/s
     vel.angular_z=vel.angular_z/(a_PARAMETER+b_PARAMETER);
     return vel;
 }
 
+//单位是rpm
 static void get_spd()
 {
     unsigned long current_time=rt_tick_get();
     long current_encoder_ticks=0;
     for(unsigned short index=0;index<4;index++)
     {
-        unsigned long dt=current_time-motors[index].prev_time;
-        float dtm=dt/60000.0; 
+        unsigned long dt=current_time-motors[index].prev_time; //单位是ms
+        float dtm=dt/60000.0; //单位是分钟
         rt_device_read(motors[index].encoder_device,0,&current_encoder_ticks,1);
 		current_encoder_ticks=motors[index].encoder_reverse?-current_encoder_ticks:current_encoder_ticks;
         long delta_ticks=current_encoder_ticks-motors[index].prev_encoder_ticks;
